@@ -17,26 +17,22 @@ from src.utils.claude_aws import chat_sonnet, chat_haiku
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    parser.add_argument('--domain_name', type=str, choices=['Video_Games', 'Baby_Products', 'Office_Products', 'Sports_and_Outdoors', 'esci'], default='Video_Games')
     parser.add_argument('--model_name', type=str, default='claude-3.5')
-    parser.add_argument('--save_dir', type=str, default='../results')
-    parser.add_argument("--data_path", type=str, default="data/local_index_search/scifact/sparse/test.parquet")
-    parser.add_argument('--dataset', type=str, default='scifact')
+    parser.add_argument('--save_dir', type=str, default='results/esci')
+    parser.add_argument("--data_path", type=str, default="data/esci/inst/sparse/subset/test.parquet")
+    parser.add_argument('--dataset', type=str, default='esci')
     args = parser.parse_args()
     
     os.makedirs(args.save_dir, exist_ok=True)
     
-
+    
     df = pd.read_parquet(args.data_path)
-
+    df = df[df['data_source'].str.contains(args.domain_name, case=False, na=False)]
+    
     inputs = [item[0]['content'] for item in df['prompt'].tolist()]
-    try:
-        targets = df['target'].tolist()
-    except:
-        targets = df['label'].tolist()
-    try:
-        qids = df['qid'].tolist()
-    except:
-        qids = list(range(len(df)))
+    targets = df['item_id'].tolist()
+    qids = df.index.tolist()
 
     # if targets[i] is a array, then convert to list
     for i in range(len(targets)):
@@ -87,10 +83,10 @@ if __name__ == '__main__':
         }
         
         if i % 100 == 0:
-            with open(os.path.join(args.save_dir, f'{args.model_name}_{args.dataset}.json'), 'w') as f:
+            with open(os.path.join(args.save_dir, f'{args.model_name}-{args.dataset}_{args.domain_name}.json'), 'w') as f:
                 json.dump(output_dict, f, indent=4)
 
         i += 1
     
-    with open(os.path.join(args.save_dir, f'{args.model_name}_{args.dataset}.json'), 'w') as f:
+    with open(os.path.join(args.save_dir, f'{args.model_name}-{args.dataset}_{args.domain_name}.json'), 'w') as f:
         json.dump(output_dict, f, indent=4)

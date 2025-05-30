@@ -20,16 +20,30 @@ PROMPT = """You are an expert in query generation. Given a query, your task is t
 Below is the query:
 ```{user_query}```"""
 
-def make_prefix(dp):
+def make_prefix(dp, template_type='qwen'):
     input_str = PROMPT.format(user_query=dp['query'])
-    input_str = """<|im_start|>system\nYou are a helpful AI assistant. You first think about the reasoning process in the mind and then provide the user with the answer.<|im_end|>\n<|im_start|>user\n""" + input_str
-    input_str += """\nShow your work in <think> </think> tags. Your final response must be in JSON format within <answer> </answer> tags. The generated query should use Boolean operators (AND, OR) to structure your query logically. For example,
+    
+    if template_type == 'qwen':
+        input_str = """<|im_start|>system\nYou are a helpful AI assistant. You first think about the reasoning process in the mind and then provide the user with the answer.<|im_end|>\n<|im_start|>user\n""" + input_str
+        input_str += """\nShow your work in <think> </think> tags. Your final response must be in JSON format within <answer> </answer> tags. The generated query should use Boolean operators (AND, OR) to structure your query logically. For example,
 <answer>
 {
     "query": xxx
 }
-</answer>.<|im_end|>
+</answer><|im_end|>
 <|im_start|>assistant\nLet me solve this step by step.\n<think>"""
+    elif template_type == 'llama3':
+        input_str = """<|begin_of_text|><|start_header_id|>system<|end_header_id|>\nYou are a helpful AI assistant. You first think about the reasoning process in the mind and then provide the user with the answer.<|eot_id|>\n<|start_header_id|>user<|end_header_id|>\n""" + input_str
+        input_str += """\nPlease show your entire reasoning process in **a single** <think> </think> block (do not open or close the tag more than once). Your final response must be in JSON format within <answer> </answer> tags. The generated query should use Boolean operators (AND, OR) to structure your query logically. For example,
+<think>
+[entire reasoning process here]
+</think>
+<answer>
+{
+    "query": xxx
+}
+</answer><|eot_id|>
+<|start_header_id|>assistant<|end_header_id|>\nLet me solve this step by step.\n<think>"""
 
     return input_str
 
@@ -54,19 +68,18 @@ if __name__ == '__main__':
     # parser.add_argument('--domain_name', type=str, choices=['Video_Games', 'Baby', 'Office', 'Sports'], default='Video_Games')
     parser.add_argument('--local_dir', default='data/esci/test_subset')
     parser.add_argument('--hdfs_dir', default=None)
-    parser.add_argument('--save_dir', type=str, default='data/esci/inst/subset')
+    parser.add_argument('--template_type', type=str, choices=['qwen', 'llama3'], default='llama3')
+    parser.add_argument('--save_dir', type=str, default='data/esci/inst/sparse/subset')
     
     args = parser.parse_args()
     
     domain_name_list = ['Video_Games', 'Baby_Products', 'Office_Products', 'Sports_and_Outdoors']
     
-
-    
     data_source = f'esci'
     data_source_dict = {ele: f'esci_{ele}' for ele in domain_name_list}
 
     file_dir = args.local_dir
-    save_dir = os.path.join(args.save_dir)
+    save_dir = os.path.join(args.save_dir, args.template_type)
     os.makedirs(save_dir, exist_ok=True)
     
     train_data, val_data, test_data_dict = load_rec_dataset(file_dir, domain_name_list)
@@ -82,7 +95,7 @@ if __name__ == '__main__':
     
     def make_map_fn(split, data_source):
         def process_fn(example, idx):
-            question = make_prefix(example)
+            question = make_prefix(example, args.template_type)
             solution = {
                 "target": example['item_id'],
             }

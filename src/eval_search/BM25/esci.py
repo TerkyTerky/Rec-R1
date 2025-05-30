@@ -48,11 +48,12 @@ if __name__ == '__main__':
 
     for i in tqdm(range(0, len(test_data), batch_size)):
         batch = test_data[i:i + batch_size]
-        queries = [item['query'] for item in batch]
+        queries = [str(item['query']) for item in batch]
         ids = [item['id'] for item in batch]
         targets = {item['id']: item['target'] for item in batch}
         scores = {item['id']: item['scores'] for item in batch}
 
+        
         search_results = search_system.batch_search(queries, top_k=topk, threads=16)
 
         for idx, sample_id in enumerate(ids):

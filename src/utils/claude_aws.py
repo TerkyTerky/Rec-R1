@@ -53,7 +53,7 @@ def chat_sonnet(prompt):
 
     message = client.messages.create(
         temperature=0,
-        model="anthropic.claude-3-sonnet-20240229-v1:0",
+        model="anthropic.claude-3-5-sonnet-20240620-v1:0",
         max_tokens=1024,
         messages=message,
     )

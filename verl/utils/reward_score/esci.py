@@ -26,6 +26,8 @@ def extract_solution(solution_str):
         processed_str = solution_str.split("Assistant:", 1)[1].strip()
     elif "<|im_start|>assistant" in solution_str:
         processed_str = solution_str.split("<|im_start|>assistant", 1)[1].strip()
+    elif "<|start_header_id|>assistant<|end_header_id|>" in solution_str:
+        processed_str = solution_str.split("<|start_header_id|>assistant<|end_header_id|>", 1)[1].strip()
     else:
         print("[Error] Failed to locate model response header")
         return None, processed_str

@@ -70,4 +70,4 @@ if __name__ == '__main__':
             retrieved = [result[0] for result in results.get(query, [])]
             ndcg.append(ndcg_at_k(retrieved, targets[query], 100))
     
-    print(f"Average NDCG@10: {sum(ndcg) / len(ndcg)}")
+    print(f"Average NDCG@100: {sum(ndcg) / len(ndcg)}")
