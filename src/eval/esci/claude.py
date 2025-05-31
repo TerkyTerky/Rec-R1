@@ -18,7 +18,7 @@ from src.utils.claude_aws import chat_sonnet, chat_haiku
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--domain_name', type=str, choices=['Video_Games', 'Baby_Products', 'Office_Products', 'Sports_and_Outdoors', 'esci'], default='Video_Games')
-    parser.add_argument('--model_name', type=str, default='claude-3.5')
+    parser.add_argument('--model_name', type=str, default='claude-haiku')
     parser.add_argument('--save_dir', type=str, default='results/esci')
     parser.add_argument("--data_path", type=str, default="data/esci/inst/sparse/subset/test.parquet")
     parser.add_argument('--dataset', type=str, default='esci')

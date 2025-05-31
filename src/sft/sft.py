@@ -28,6 +28,10 @@ elif MODE == 'with_reason_no_json':
     train_file_path = 'data/esci/inst/sparse/sft/with_reason_no_json/train.parquet'
     val_file_path = 'data/esci/inst/sparse/sft/with_reason_no_json/val.parquet'
     output_dir = "./checkpoints/qwen-sft-full-with_reason_no_json"
+elif MODE == 'rej_sft':
+    train_file_path = 'data/esci/inst/sparse/rsft/merged/train.parquet'
+    val_file_path = 'data/esci/inst/sparse/sft/val.parquet'
+    output_dir = "./checkpoints/qwen-sft-rej_sft"
 
 model_name = "Qwen/Qwen2.5-3B-Instruct"
 cache_dir = "/srv/local/data/linjc/hub"
@@ -43,7 +47,6 @@ model = AutoModelForCausalLM.from_pretrained(
 
 dataset = load_dataset("parquet", data_files={
     "train": train_file_path,
-    "validation": val_file_path
 })
 
 training_args = TrainingArguments(
@@ -55,17 +58,17 @@ training_args = TrainingArguments(
     fp16=True,
     logging_steps=10,
     save_strategy="epoch",
-    evaluation_strategy="epoch",
+    evaluation_strategy="no",
     save_total_limit=2,
     report_to="none"
 )
 
-# 初始化 SFTTrainer
+
 trainer = SFTTrainer(
     model=model,
     tokenizer=tokenizer,
     train_dataset=dataset["train"],
-    eval_dataset=dataset["validation"],
+    # eval_dataset=dataset["validation"],
     dataset_text_field="text",
     args=training_args,
     max_seq_length=1024
