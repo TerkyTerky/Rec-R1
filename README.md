@@ -104,6 +104,9 @@ export CUDA_VISIBLE_DEVICES=0,1
 bash scripts/train/train_rec-amazon_c4_3b.sh
 ```
 
+**Note**: To use the latest VERL version, you can plug in the reward computation implementations from verl/utils/reward_score (for sparse retrieval) and verl/utils/reward_score_dense (for dense retrieval) into the latest VERL framework.
+
+
 ### Evaluation
 
 The evaluation process consists of two main steps:
