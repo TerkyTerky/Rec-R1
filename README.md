@@ -10,7 +10,9 @@ REC-R1 is a general framework that bridges generative large language models (LLM
 
 ## News
 [2026/01/28] We have reorganized the repository structure for better code organization and readability.
+
 [2025/10/11] Rec-R1 is accepted by TMLR!
+
 [2025/03/31] We release the code and paper. We are running more experiments such as more LLM4Rec tasks and more datasets. **More results are coming!**
 
 <p align="center">
