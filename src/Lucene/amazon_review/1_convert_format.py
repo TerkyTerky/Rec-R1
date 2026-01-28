@@ -44,7 +44,7 @@ def convert_jsonl_for_pyserini(input_file, output_file):
     print(f"✅ Converted JSONL saved to {output_file}")
 
 
-domain_name_list = ['All_Beauty', 'Baby_Products', 'Video_Games']
+domain_name_list = ['All_Beauty']
 
 for domain_name in domain_name_list:
     ori_data_dir = f"data/amazon_review/processed/corpus/{domain_name}_items_filtered.jsonl"

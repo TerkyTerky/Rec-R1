@@ -10,9 +10,9 @@ for DOMAIN_NAME in 'Video_Games' 'Baby_Products' 'Office_Products' 'Sports_and_O
     # QUERY_GEN_MODEL_NAME=llama3-3b-inst
     # QUERY_GEN_MODEL_NAME=claude-haiku
     # QUERY_GEN_MODEL_NAME=Qwen-3b-rej-sft
-    QUERY_GEN_MODEL_NAME=Qwen-3b-dpo
+    # QUERY_GEN_MODEL_NAME=Qwen-3b-dpo
     # QUERY_GEN_MODEL_NAME=claude-3.5
-    # QUERY_GEN_MODEL_NAME=rec-r1
+    QUERY_GEN_MODEL_NAME=rec-r1
     # QUERDOMAIN_NAME
     # QUERY_GEN_MODEL_NAME=Qwen-sft-no-reason
     # QUERY_GEN_MODEL_NAME=Qwen-sft-no-json-no-reason
