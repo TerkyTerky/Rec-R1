@@ -113,7 +113,7 @@ def apply_kl_penalty(data: DataProto, kl_ctrl: core_algos.AdaptiveKLController, 
     return data, metrics
 
 
-def compute_advantage(data: DataProto, adv_estimator, gamma=1.0, lam=1.0, num_repeat=1):
+def compute_advantage(data: DataProto, adv_estimator, gamma=1.0, lam=1.0, num_repeat=1, use_dense_reward=False):
     # prepare response group
     # TODO: add other ways to estimate advantages
     if adv_estimator == 'gae':
@@ -137,9 +137,18 @@ def compute_advantage(data: DataProto, adv_estimator, gamma=1.0, lam=1.0, num_re
         response_length = responses.size(-1)
         attention_mask = data.batch['attention_mask']
         response_mask = attention_mask[:, -response_length:]
-        advantages, returns = core_algos.compute_grpo_outcome_advantage(token_level_rewards=token_level_rewards,
-                                                                        eos_mask=response_mask,
-                                                                        index=index)
+        
+        if use_dense_reward:
+             values = data.batch['values']
+             advantages, returns = core_algos.compute_grpo_extended_advantage(token_level_rewards=token_level_rewards,
+                                                                              values=values,
+                                                                              eos_mask=response_mask,
+                                                                              index=index,
+                                                                              gamma=gamma)
+        else:
+            advantages, returns = core_algos.compute_grpo_outcome_advantage(token_level_rewards=token_level_rewards,
+                                                                            eos_mask=response_mask,
+                                                                            index=index)
         data.batch['advantages'] = advantages
         data.batch['returns'] = returns
     else:
@@ -491,7 +500,13 @@ class RayPPOTrainer(object):
             self.resource_pool_to_cls[resource_pool]['critic'] = critic_cls
             self.use_critic = True
         elif self.config.algorithm.adv_estimator == 'grpo':
-            self.use_critic = False
+            if self.config.algorithm.get('use_dense_reward', False):
+                 resource_pool = self.resource_pool_manager.get_resource_pool(Role.Critic)
+                 critic_cls = RayClassWithInitArgs(cls=self.role_worker_mapping[Role.Critic], config=self.config.critic)
+                 self.resource_pool_to_cls[resource_pool]['critic'] = critic_cls
+                 self.use_critic = True
+            else:
+                self.use_critic = False
         else:
             raise NotImplementedError
 
@@ -668,7 +683,8 @@ class RayPPOTrainer(object):
                                                   adv_estimator=self.config.algorithm.adv_estimator,
                                                   gamma=self.config.algorithm.gamma,
                                                   lam=self.config.algorithm.lam,
-                                                  num_repeat=self.config.actor_rollout_ref.rollout.n)
+                                                  num_repeat=self.config.actor_rollout_ref.rollout.n,
+                                                  use_dense_reward=self.config.algorithm.get('use_dense_reward', False))
 
                     # update critic
                     if self.use_critic:

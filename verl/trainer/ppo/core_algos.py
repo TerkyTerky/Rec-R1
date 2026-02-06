@@ -155,6 +155,129 @@ def compute_grpo_outcome_advantage(token_level_rewards: torch.Tensor,
     return scores, scores
 
 
+def compute_grpo_extended_advantage(token_level_rewards: torch.Tensor,
+                                    values: torch.Tensor,
+                                    eos_mask: torch.Tensor,
+                                    index: torch.Tensor,
+                                    gamma: float = 1.0,
+                                    epsilon: float = 1e-6):
+    """
+    Compute advantage for GRPO with dense rewards (Short-term + Long-term).
+    Short-term reward: values (predicted score)
+    Long-term reward: Discounted sum of future short-term rewards.
+    Total: Short-term + Long-term (which is the Return).
+    
+    Args:
+        token_level_rewards: Outcome rewards (Sparse).
+        values: Short-term predicted scores (Dense).
+        eos_mask: Mask for valid tokens.
+        index: Group index.
+        gamma: Discount factor.
+    """
+    
+    # 1. Combine rewards: r_t = values[t] + outcome[t]
+    # Note: outcome[t] is usually 0 except at EOS.
+    # We assume 'values' contains the "Short-term reward" as described by user.
+    
+    total_rewards = values + token_level_rewards
+    
+    # 2. Compute Returns (Short-term + Long-term)
+    # G_t = r_t + gamma * G_{t+1}
+    
+    returns = torch.zeros_like(total_rewards)
+    gen_len = total_rewards.shape[-1]
+    last_return = 0.0
+    
+    # Calculate returns backward
+    for t in reversed(range(gen_len)):
+        # We need to handle masking. If masked, reward is 0 and next return is 0 (or continued if we want across-mask, but usually not).
+        # Assuming values are already masked or irrelevant outside mask.
+        # But better be safe with eos_mask.
+        
+        is_valid = eos_mask[:, t] # (bs,)
+        
+        current_reward = total_rewards[:, t] * is_valid
+        next_return = last_return # (bs,)
+        
+        # G_t = r_t + gamma * G_{t+1}
+        # If current step is invalid (padded), G_t should probably be 0.
+        
+        current_val = current_reward + gamma * next_return
+        returns[:, t] = current_val * is_valid
+        
+        last_return = current_val
+        
+    # 3. Group Normalization
+    # We normalize the computed Returns at each step across the group.
+    # Unlike standard GRPO which normalizes the scalar outcome, here we have dense returns.
+    # We normalize per token position? Or per group statistics?
+    # Standard GRPO normalizes the *outcome*.
+    # Here we have a return G_t for each token.
+    # We should probably normalize G_t using the group statistics of G_t.
+    
+    # However, tokens are aligned? Not necessarily.
+    # But for GRPO, we usually compare completions for the same prompt.
+    # If we do per-token normalization, we need to handle length differences.
+    # But simplified approach: Compute mean/std of G_t for the group *at this step*?
+    # No, usually prompts have different lengths, so steps are not aligned.
+    
+    # Alternative interpretation:
+    # Calculate the Total Score for the whole sequence? No, user said "Short term + Long term" which implies dense.
+    # Let's normalize G_t using the group's mean/std of G_t *at the same relative position*?
+    # Or just normalize using the group's *average return over the sequence*? No.
+    
+    # Let's try to normalize per token position t.
+    # For a group of K responses. At step t.
+    # Some responses might have ended.
+    # We only normalize among active responses?
+    
+    # To keep it simple and robust:
+    # We can compute the advantage as G_t (unnormalized) or normalized by the whole batch?
+    # GRPO specifically means Group Relative.
+    # So we must normalize by group.
+    
+    # Implementation: Iterate over groups, and for each group, normalize returns.
+    
+    advantages = torch.zeros_like(returns)
+    
+    id2indices = defaultdict(list)
+    bsz = index.shape[0]
+    for i in range(bsz):
+        id2indices[index[i]].append(i)
+        
+    for idx, indices in id2indices.items():
+        # indices is a list of batch indices belonging to the same group
+        group_returns = returns[indices] # (K, T)
+        group_mask = eos_mask[indices]   # (K, T)
+        
+        # We want to normalize G_{k,t} using mean(G_{.,t}) and std(G_{.,t})
+        # But only for valid t.
+        
+        # Mean/Std per time step t
+        # (K, T)
+        
+        # Handle variable lengths:
+        # If a sequence has ended, it shouldn't contribute to mean/std of future steps?
+        # Or should we treat it as 0? 0 is bad because Return shouldn't be 0 arbitrarily.
+        # But here we are just normalizing what we have.
+        
+        mean = group_returns.sum(dim=0) / (group_mask.sum(dim=0) + epsilon) # (T,)
+        # Note: if group_mask.sum is 0, mean is 0.
+        
+        # Variance
+        diff = (group_returns - mean.unsqueeze(0)) * group_mask
+        var = (diff ** 2).sum(dim=0) / (group_mask.sum(dim=0) + epsilon)
+        std = torch.sqrt(var)
+        
+        # Normalize
+        adv = (group_returns - mean.unsqueeze(0)) / (std.unsqueeze(0) + epsilon)
+        
+        # Apply mask
+        advantages[indices] = adv * group_mask
+        
+    return advantages, returns
+
+
 def compute_rewards(token_level_scores, old_log_prob, ref_log_prob, kl_ratio):
     kl = old_log_prob - ref_log_prob
     return token_level_scores - kl * kl_ratio
